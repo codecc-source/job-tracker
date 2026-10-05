@@ -1,27 +1,22 @@
 # Job Tracker
-<<<<<<< HEAD
 
-Local-first job application tracker. Data stays in the browser (IndexedDB). Optional cloud sync with Supabase.
+A local-first job application tracker. Your data stays in your browser. Optional cloud sync lets you see the same list on your phone and laptop or a different device.
 
-## Run it
+## Features
 
-    npm install
-    npm run dev
+- Track applications, statuses, notes, ratings, salary info + other useful information for job searchers
+- Works without an account. Cloud sync is optional.
+- Passwordless sign-in with a one-time email code
+- Sync across devices, with each user able to read only their own data
+- Backup and restore, CSV import, stats, and calendar view
 
-Open http://localhost:3000. Cloud sync stays hidden until the two Supabase variables below are set.
+## Tech stack
 
-## Cloud sync (optional)
-
-1. Create a Supabase project and run `supabase/schema.sql` in the SQL Editor.
-2. Copy `.env.example` to `.env.local` and fill in:
-
-       NEXT_PUBLIC_SUPABASE_URL=
-       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-
-3. Restart `npm run dev`.
+- [Next.js](https://nextjs.org/) (App Router) and React
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Supabase](https://supabase.com/) for optional auth and database
+- IndexedDB for local storage
 
 ## Credits
 
 Icons created by [Magnific](https://www.flaticon.com/authors/magnific) - [Flaticon](https://www.flaticon.com)
-=======
->>>>>>> 316c151400a06468616b3f09e55b4bd3274a9bcc
