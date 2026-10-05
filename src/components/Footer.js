@@ -17,7 +17,7 @@ export default function Footer({ onInfo }) {
         </button>
       </div>
       <p>
-        Icons created by{" "}
+        Icon created by{" "}
         <a href="https://www.flaticon.com/authors/magnific" target="_blank" rel="noopener noreferrer" className={link}>Magnific</a>
         {" - "}
         <a href="https://www.flaticon.com" target="_blank" rel="noopener noreferrer" className={link}>Flaticon</a>

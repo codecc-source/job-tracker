@@ -11,7 +11,7 @@ export function friendlyError(e) {
   return e?.message || "Something went wrong. Please try again.";
 }
 
-export function useCloud({ rows, ready, applyRemote }) {
+export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
   const [user, setUser] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -75,7 +75,23 @@ export function useCloud({ rows, ready, applyRemote }) {
     if (e) throw e;
   };
 
-  const signOut = () => supabase.auth.signOut({ scope: "local" });
+  // Signing out resets this browser: the cloud copy is untouched, the local copy is wiped.
+  const signOut = async () => {
+    // Let any in-flight sync finish so it can't write data back after we clear.
+    while (busy.current) await new Promise((r) => setTimeout(r, 100));
+    busy.current = true;
+    try {
+      // Push any unsynced local changes first, so wiping this device never loses them.
+      // If this fails (e.g. offline), we abort and keep the user signed in.
+      if (user) await syncApplications(supabase, user.id, rowsRef.current);
+      const { error: e } = await supabase.auth.signOut({ scope: "local" });
+      if (e) throw e;
+      await onSignedOut?.();
+    } finally {
+      again.current = false;
+      busy.current = false;
+    }
+  };
 
   const deleteAccount = async () => {
     const { error: e } = await supabase.rpc("delete_my_account");

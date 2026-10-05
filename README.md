@@ -19,4 +19,4 @@ A local-first job application tracker. Your data stays in your browser. Optional
 
 ## Credits
 
-Icons created by [Magnific](https://www.flaticon.com/authors/magnific) - [Flaticon](https://www.flaticon.com)
+Icon created by [Magnific](https://www.flaticon.com/authors/magnific) - [Flaticon](https://www.flaticon.com)

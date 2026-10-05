@@ -50,7 +50,7 @@ export default function Home() {
     apps, all, ready, create, update, setStatus, logFollowUp, remove, importRows,
     autoGhost, reapply, dismissReapply, clearAll, applyRemote,
   } = useApplications();
-  const cloud = useCloud({ rows: all, ready, applyRemote });
+  const cloud = useCloud({ rows: all, ready, applyRemote, onSignedOut: () => clearAll() });
 
   const [view, setView] = useState("jobs");
   const [filters, setFilters] = useState(DEFAULT_FILTERS);

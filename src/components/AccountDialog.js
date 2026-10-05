@@ -14,6 +14,7 @@ export default function AccountDialog({ cloud, onClose }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const run = async (fn, after) => {
     setBusy(true); setError("");
@@ -72,8 +73,20 @@ export default function AccountDialog({ cloud, onClose }) {
       <p className="text-sm text-muted">Your list syncs automatically. It also syncs when you come back to this page.</p>
       <div className="flex flex-wrap gap-2">
         <button onClick={cloud.sync} className={btn}><RefreshCw size={14} className={cloud.status === "syncing" ? "animate-spin" : ""} />Sync now</button>
-        <button onClick={async () => { await cloud.signOut(); toast("Signed out. Your list stays on this device."); onClose(); }} className={btn}><LogOut size={14} />Sign out</button>
+        <button disabled={busy} onClick={() => setConfirmSignOut(true)} className={btn}><LogOut size={14} />Sign out</button>
       </div>
+
+      {confirmSignOut && (
+        <div className="space-y-2 rounded-xl border border-danger/30 p-3" role="alertdialog">
+          <p className="text-sm font-semibold text-danger">Sign out and clear this device?</p>
+          <p className="text-sm text-muted">Your job list will be removed from this browser when you sign out. It stays safe in your account, and signing back in restores it. Any recent changes are synced first. If that can't be done, you'll stay signed in.</p>
+          <div className="flex flex-wrap gap-2">
+            <button disabled={busy} onClick={() => run(() => cloud.signOut(), () => { toast("Signed out. Your list is saved to your account and was removed from this device."); onClose(); })} className={btnDanger}>Yes, sign out</button>
+            <button disabled={busy} onClick={() => setConfirmSignOut(false)} className={btn}>Cancel</button>
+          </div>
+          {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+        </div>
+      )}
 
       <section className="space-y-2 rounded-xl border border-danger/30 p-3">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-danger"><Trash2 size={14} />Delete my account</h3>
