@@ -1,11 +1,16 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Mail, RefreshCw, LogOut, Trash2, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
 import Modal from "./Modal";
 import { field, btn, btnPrimary, btnDanger, Field } from "./ui";
 import { friendlyError } from "@/hooks/useCloud";
+import Turnstile, { TURNSTILE_SITE_KEY } from "./Turnstile";
+
+const SEND_COOLDOWN_S = 60;
+let lastSentAt = 0;
+const secondsLeft = () => Math.max(0, Math.ceil((lastSentAt + SEND_COOLDOWN_S * 1000 - Date.now()) / 1000));
 
 export default function AccountDialog({ cloud, onClose }) {
   const [email, setEmail] = useState("");
@@ -15,6 +20,16 @@ export default function AccountDialog({ cloud, onClose }) {
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [hp, setHp] = useState(""); // honeypot
+  const [token, setToken] = useState(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const [left, setLeft] = useState(secondsLeft);
+
+  useEffect(() => {
+    if (left <= 0) return;
+    const t = setTimeout(() => setLeft(secondsLeft()), 1000);
+    return () => clearTimeout(t);
+  }, [left]);
 
   const run = async (fn, after) => {
     setBusy(true); setError("");
@@ -22,7 +37,18 @@ export default function AccountDialog({ cloud, onClose }) {
     setBusy(false);
   };
 
-  const send = (e) => { e.preventDefault(); run(() => cloud.sendCode(email.trim()), () => setStep("code")); };
+  const send = (e) => {
+    e.preventDefault();
+    if (hp) { setStep("code"); return; } // bot filled the honeypot
+    if (left > 0) return;
+    run(
+      async () => {
+        try { await cloud.sendCode(email.trim(), token); }
+        finally { setToken(null); setCaptchaReset((n) => n + 1); } // single-use token
+      },
+      () => { lastSentAt = Date.now(); setLeft(secondsLeft()); setStep("code"); }
+    );
+  };
   const verify = (e) => { e.preventDefault(); run(() => cloud.verify(email.trim(), code.trim()), () => { toast.success("You're signed in"); onClose(); }); };
 
   const statusText = {
@@ -43,7 +69,15 @@ export default function AccountDialog({ cloud, onClose }) {
             <Field label="Your email">
               <input type="email" required autoFocus className={field} placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             </Field>
-            <button disabled={busy} className={btnPrimary + " w-full justify-center"}><Mail size={15} />{busy ? "Sending..." : "Email me a sign-in code"}</button>
+            <input
+              type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true"
+              value={hp} onChange={(e) => setHp(e.target.value)}
+              style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+            />
+            <Turnstile onToken={setToken} resetSignal={captchaReset} />
+            <button disabled={busy || left > 0 || (!!TURNSTILE_SITE_KEY && !token)} className={btnPrimary + " w-full justify-center"}>
+              <Mail size={15} />{busy ? "Sending..." : left > 0 ? `Wait ${left}s to send again` : "Email me a sign-in code"}
+            </button>
             <p className="text-xs text-muted">No password needed. We'll email you a short code.</p>
           </form>
         ) : (
@@ -90,7 +124,7 @@ export default function AccountDialog({ cloud, onClose }) {
 
       <section className="space-y-2 rounded-xl border border-danger/30 p-3">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-danger"><Trash2 size={14} />Delete my account</h3>
-        <p className="text-sm text-muted">Deletes your account and the copy of your list stored online. The list on this device stays until you clear it.</p>
+        <p className="text-sm text-muted">Deletes your account, the copy of your list stored online, and the list on this device.</p>
         {!confirmDelete ? (
           <button onClick={() => setConfirmDelete(true)} className={btnDanger}>Delete my account</button>
         ) : (

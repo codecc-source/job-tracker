@@ -5,6 +5,8 @@ import { syncApplications } from "@/lib/sync";
 
 export function friendlyError(e) {
   const m = (e?.message || "").toLowerCase();
+  if (m.includes("signups not allowed") || m.includes("user not found") || m.includes("not allowed for otp")) return "This app is invite-only. Ask the owner to add your email, then try again.";
+  if (m.includes("captcha")) return "Please complete the security check and try again.";
   if (m.includes("rate limit") || m.includes("too many")) return "Too many emails were sent. Please wait a few minutes and try again.";
   if (m.includes("expired") || m.includes("invalid")) return "That code didn't work. Check it, or ask for a new one.";
   if (m.includes("fetch") || m.includes("network")) return "No internet connection. Your changes are safe on this device and will sync later.";
@@ -65,8 +67,11 @@ export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
     };
   }, [user, sync]);
 
-  const sendCode = async (email) => {
-    const { error: e } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
+  const sendCode = async (email, captchaToken) => {
+    const { error: e } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin, shouldCreateUser: false, ...(captchaToken ? { captchaToken } : {}) },
+    });
     if (e) throw e;
   };
 
@@ -75,14 +80,11 @@ export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
     if (e) throw e;
   };
 
-  // Signing out resets this browser: the cloud copy is untouched, the local copy is wiped.
+  // Signing out resets this browser, the cloud copy is untouched, the local copy is wiped.
   const signOut = async () => {
-    // Let any in-flight sync finish so it can't write data back after we clear.
     while (busy.current) await new Promise((r) => setTimeout(r, 100));
     busy.current = true;
     try {
-      // Push any unsynced local changes first, so wiping this device never loses them.
-      // If this fails (e.g. offline), we abort and keep the user signed in.
       if (user) await syncApplications(supabase, user.id, rowsRef.current);
       const { error: e } = await supabase.auth.signOut({ scope: "local" });
       if (e) throw e;
@@ -93,10 +95,19 @@ export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
     }
   };
 
+  // Deleting the account also wipes this device's local copy.
   const deleteAccount = async () => {
-    const { error: e } = await supabase.rpc("delete_my_account");
-    if (e) throw e;
-    await supabase.auth.signOut({ scope: "local" });
+    while (busy.current) await new Promise((r) => setTimeout(r, 100));
+    busy.current = true;
+    try {
+      const { error: e } = await supabase.rpc("delete_my_account");
+      if (e) throw e;
+      await supabase.auth.signOut({ scope: "local" });
+      await onSignedOut?.();
+    } finally {
+      again.current = false;
+      busy.current = false;
+    }
   };
 
   return { enabled: cloudEnabled, user, status, error, lastSync, sync, sendCode, verify, signOut, deleteAccount };
