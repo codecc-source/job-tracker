@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 
 export default function Modal({ title, onClose, children, wide = false, side = false }) {
   const panel = side
-    ? "h-full w-full max-w-md overflow-y-auto border-l border-line bg-surface p-5 shadow-2xl"
+    ? "h-full w-full max-w-lg overflow-y-auto border-l border-line bg-surface p-5 shadow-2xl"
     : `max-h-[90vh] w-full ${wide ? "max-w-2xl" : "max-w-md"} space-y-4 overflow-y-auto rounded-2xl border border-line bg-surface p-5 shadow-2xl`;
 
   return (

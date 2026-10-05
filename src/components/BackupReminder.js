@@ -18,9 +18,9 @@ export default function BackupReminder({ onExport }) {
   return (
     <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
       <HardDriveDownload size={18} className="shrink-0" />
-      <span className="flex-1">Time for a backup. Your data only lives on this device.</span>
-      <button onClick={onExport} className={btnPrimary}>Export now</button>
-      <button onClick={() => snoozeReminder(1)} className={btn}>Later</button>
+      <span className="flex-1">Time to save a backup so you don't lose your list.</span>
+      <button onClick={onExport} className={btnPrimary}>Save backup</button>
+      <button onClick={() => snoozeReminder(1)} className={btn}>Remind me tomorrow</button>
     </div>
   );
 }

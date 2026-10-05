@@ -41,6 +41,13 @@ export function noteExported() {
   emit();
 }
 
+export function noteCleared() {
+  set(K.added, "0");
+  set(K.dirty, "0");
+  del(K.snooze);
+  emit();
+}
+
 export function snoozeReminder(days = 1) {
   set(K.snooze, new Date(Date.now() + days * 86400000).toISOString());
   emit();

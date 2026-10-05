@@ -1,4 +1,5 @@
 import { STATUSES } from "./statuses";
+import { MODES, JOB_TYPES, PERIODS } from "./fields";
 
 export const BACKUP_VERSION = 1;
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -57,6 +58,9 @@ export async function readBackupFile(file) {
   return parseBackupText(await file.text());
 }
 
+const day = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v)) ? v : "");
+const num = (v) => (typeof v === "string" && /^\d+(\.\d{1,2})?$/.test(v) ? v : "");
+const pick = (v, list) => (list.includes(v) ? v : "");
 const str = (v) => (typeof v === "string" ? v : "");
 const iso = (v, fallback) => (typeof v === "string" && !isNaN(new Date(v)) ? v : fallback);
 
@@ -67,7 +71,15 @@ export function normalizeApplication(a) {
     id: a.id.slice(0, 100),
     title: str(a.title), company: str(a.company),
     url: /^https?:\/\//i.test(str(a.url)) ? a.url : "",
-    source: str(a.source), location: str(a.location), work_mode: str(a.work_mode), salary: str(a.salary),
+    source: str(a.source), location: str(a.location), work_mode: pick(a.work_mode, MODES), salary: str(a.salary),
+    job_type: pick(a.job_type, JOB_TYPES),
+    salary_currency: str(a.salary_currency).slice(0, 12), salary_min: num(a.salary_min), salary_max: num(a.salary_max),
+    salary_period: pick(a.salary_period, PERIODS.map((p) => p.id)),
+    deadline: day(a.deadline), next_step_date: day(a.next_step_date), next_step: str(a.next_step),
+    priority: Number.isInteger(a.priority) && a.priority >= 0 && a.priority <= 5 ? a.priority : 0,
+    contact_name: str(a.contact_name), contact_email: str(a.contact_email), contact_phone: str(a.contact_phone),
+    resume_version: str(a.resume_version), rejection_reason: str(a.rejection_reason),
+    ghosted_auto: a.ghosted_auto === true, reapply_dismissed: a.reapply_dismissed === true,
     notes: str(a.notes), job_description: str(a.job_description),
     status: STATUSES.some((s) => s.id === a.status) ? a.status : "applied",
     applied_at: iso(a.applied_at, now.slice(0, 10)),

@@ -1,22 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown } from "lucide-react";
 import { STATUSES } from "@/lib/statuses";
 import { parsePaste } from "@/lib/parse";
+import { isoDay } from "@/lib/dates";
+import { emptyFields } from "@/lib/fields";
 import { field, btnPrimary, Field } from "./ui";
+import JobFields from "./JobFields";
 
-const MODES = ["", "Remote", "Hybrid", "On-site"];
-const today = () => new Date().toISOString().slice(0, 10);
-const blank = (status) => ({
-  title: "", company: "", url: "", source: "", applied_at: today(), status,
-  location: "", work_mode: "", salary: "", notes: "", job_description: "",
-});
+const blank = (status, currency) => ({ ...emptyFields(), applied_at: isoDay(), status, salary_currency: currency });
 
-export default function QuickAdd({ onAdd, existingUrls = [], defaultStatus = "applied" }) {
-  const [f, setF] = useState(() => blank(defaultStatus));
+export default function QuickAdd({ onAdd, onDone, existingUrls = [], defaultStatus = "applied", defaultCurrency = "USD" }) {
+  const [f, setF] = useState(() => blank(defaultStatus, defaultCurrency));
   const [srcTouched, setSrcTouched] = useState(false);
 
-  useEffect(() => { setF((p) => ({ ...p, status: defaultStatus })); }, [defaultStatus]);
+  useEffect(() => {
+    setF((p) => ({ ...p, status: defaultStatus, salary_currency: p.salary_min || p.salary_max ? p.salary_currency : defaultCurrency }));
+  }, [defaultStatus, defaultCurrency]);
 
   const dupe = f.url && existingUrls.includes(f.url.trim());
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -32,46 +32,40 @@ export default function QuickAdd({ onAdd, existingUrls = [], defaultStatus = "ap
     e.preventDefault();
     if (!f.title.trim() && !f.company.trim() && !f.url.trim()) return;
     await onAdd({ ...f, title: f.title.trim(), company: f.company.trim(), url: f.url.trim() });
-    setF(blank(defaultStatus));
+    setF(blank(defaultStatus, defaultCurrency));
     setSrcTouched(false);
+    onDone?.();
   };
 
   return (
-    <form onSubmit={submit} className="mb-8 space-y-4 rounded-2xl border border-line bg-surface p-5 shadow-lg shadow-black/20">
-      <h2 className="flex items-center gap-2 text-sm font-semibold"><Plus size={16} className="text-accent" />Add application</h2>
-
+    <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Job title"><input className={field} placeholder="Frontend Developer" value={f.title} onChange={set("title")} /></Field>
         <Field label="Company"><input className={field} placeholder="Acme" value={f.company} onChange={set("company")} /></Field>
-        <Field label="Link"><input className={field} placeholder="https://..." value={f.url} onChange={onUrl} /></Field>
+        <Field label="Link to the job post"><input className={field} placeholder="https://..." value={f.url} onChange={onUrl} /></Field>
       </div>
-      {dupe && <p className="text-sm text-amber-600 dark:text-amber-300">This link is already in your list.</p>}
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Source"><input className={field} placeholder="LinkedIn" value={f.source} onChange={onSource} /></Field>
-        <Field label="Location"><input className={field} placeholder="Philippines" value={f.location} onChange={set("location")} /></Field>
-        <Field label="Work mode">
-          <select className={field} value={f.work_mode} onChange={set("work_mode")}>
-            {MODES.map((m) => <option key={m} value={m}>{m || "—"}</option>)}
-          </select>
-        </Field>
-        <Field label="Salary range"><input className={field} placeholder="60–80k PHP" value={f.salary} onChange={set("salary")} /></Field>
-      </div>
+      {dupe && <p className="text-sm text-amber-600 dark:text-amber-300">You already added this link.</p>}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Notes"><textarea rows={3} className={field} value={f.notes} onChange={set("notes")} /></Field>
-        <Field label="Job description (keep a copy)"><textarea rows={3} className={field} value={f.job_description} onChange={set("job_description")} /></Field>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <Field label="Date applied"><input type="date" className={field} value={f.applied_at} onChange={set("applied_at")} /></Field>
-        <Field label="Status">
+        <Field label="Date you applied"><input type="date" className={field} value={f.applied_at} onChange={set("applied_at")} /></Field>
+        <Field label="Where are you in the process?">
           <select className={field} value={f.status} onChange={set("status")}>
             {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </Field>
-        <button className={btnPrimary + " ml-auto"}><Plus size={15} />Add</button>
       </div>
+
+      <details className="group rounded-xl border border-line">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-medium">
+          <span>More details <span className="font-normal text-muted">(salary, deadline, contact person, notes...)</span></span>
+          <ChevronDown size={16} className="text-muted transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="border-t border-line p-3">
+          <JobFields f={f} set={set} setF={setF} onSource={onSource} />
+        </div>
+      </details>
+
+      <button className={btnPrimary}><Plus size={15} />Add to my list</button>
     </form>
   );
 }

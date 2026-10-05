@@ -1,4 +1,5 @@
 import { get, set } from "idb-keyval";
+import { makeTombstone } from "../fields";
 
 const KEY = "jt:data";
 
@@ -21,8 +22,7 @@ export const localStore = {
   },
   async remove(id) {
     const rows = await readAll();
-    const now = new Date().toISOString();
-    await writeAll(rows.map((r) => (r.id === id ? { ...r, deleted_at: now, updated_at: now } : r)));
+    await writeAll(rows.map((r) => (r.id === id ? makeTombstone(id) : r)));
   },
   replaceAll: writeAll,
 };

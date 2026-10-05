@@ -6,6 +6,9 @@ export const DEFAULT_PREFS = {
   theme: "dark",
   view: "all",
   defaultStatus: "applied",
+  defaultCurrency: "USD",
+  ghostAfterDays: 60,
+  reapplyMonths: 3,
   staleDays: { warn: 7, high: 14, critical: 30 },
 };
 
@@ -22,6 +25,10 @@ export function sanitizePrefs(p) {
     theme: ["light", "dark", "system"].includes(s.theme) ? s.theme : d.theme,
     view: ["all", "attention"].includes(s.view) ? s.view : d.view,
     defaultStatus: STATUSES.some((x) => x.id === s.defaultStatus) ? s.defaultStatus : d.defaultStatus,
+    defaultCurrency: typeof s.defaultCurrency === "string" && s.defaultCurrency.trim()
+      ? s.defaultCurrency.trim().toUpperCase().slice(0, 12) : d.defaultCurrency,
+    ghostAfterDays: [30, 60].includes(s.ghostAfterDays) ? s.ghostAfterDays : d.ghostAfterDays,
+    reapplyMonths: [3, 6].includes(s.reapplyMonths) ? s.reapplyMonths : d.reapplyMonths,
     staleDays: validThresholds(s.staleDays)
       ? { warn: s.staleDays.warn, high: s.staleDays.high, critical: s.staleDays.critical }
       : d.staleDays,

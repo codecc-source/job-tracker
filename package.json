@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
+    "@supabase/supabase-js": "^2.117.2",
     "date-fns": "^4.1.0",
     "idb-keyval": "^6.2.1",
     "lucide-react": "^1.52.0",

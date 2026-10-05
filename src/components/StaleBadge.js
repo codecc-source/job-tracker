@@ -11,7 +11,7 @@ export default function StaleBadge({ stale }) {
   return (
     <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${COLORS[stale.level]}`} title={stale.label}>
       <Clock size={12} />
-      {stale.days}d quiet
+      {stale.days} days no update
     </span>
   );
 }

@@ -1,21 +1,24 @@
 "use client";
-import { HardDrive, Download, Smartphone, Eraser, Clock } from "lucide-react";
+import { HardDrive, Save, Smartphone, Eraser, Clock, Cloud } from "lucide-react";
 import Modal from "./Modal";
-import { btnPrimary } from "./ui";
+import { btn, btnPrimary } from "./ui";
 
 const POINTS = [
-  [HardDrive, "Stored on this device only", "No account and no server. Your applications live in this browser."],
-  [Download, "Back up regularly", "Use Export to save a .json file somewhere safe: Drive, email, a USB stick."],
-  [Smartphone, "Switching devices or browsers", "Your data doesn't follow you. Export on one, Import on the other. Chrome and Safari on the same phone don't share data."],
-  [Eraser, "Clearing data wipes everything", "Clearing cache, cookies or site data, or using a private window, deletes all your applications."],
-  [Clock, "iPhone and iPad Safari", "Safari deletes site data after 7 days without a visit. Use Add to Home Screen to avoid this."],
+  [HardDrive, "Your list stays on this device", "There is no account. Everything you add is saved in this browser, on this device only."],
+  [Save, "Save a backup often", "Tap Save backup to get a small file. Keep it in a folder you can easily find, like Documents on a laptop or the Files app on a phone. Putting a copy in Google Drive or emailing it to yourself is even safer."],
+  [Smartphone, "Changing phone, laptop or browser?", "Your list will not come with you. Save a backup first, then open it on the other device with Backup and restore."],
+  [Eraser, "Clearing browser data erases your list", "Clearing history, cookies or site data, or using a private window, will delete everything here."],
+  [Clock, "On iPhone or iPad", "Safari erases saved data if you don't visit for 7 days. Tap Share, then Add to Home Screen, to prevent this."],
 ];
 
-export default function WelcomeDialog({ onClose }) {
+export default function WelcomeDialog({ onClose, onSignIn }) {
+  const points = onSignIn
+    ? [...POINTS, [Cloud, "Want your list on every device?", "Create a free account to sync your list between your phone and laptop. It is optional."]]
+    : POINTS;
   return (
     <Modal title="Before you start" onClose={onClose}>
       <ul className="space-y-3">
-        {POINTS.map(([Icon, title, text]) => (
+        {points.map(([Icon, title, text]) => (
           <li key={title} className="flex gap-3">
             <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent"><Icon size={16} /></span>
             <div>
@@ -25,7 +28,10 @@ export default function WelcomeDialog({ onClose }) {
           </li>
         ))}
       </ul>
-      <button onClick={onClose} className={btnPrimary + " w-full justify-center"}>Got it</button>
+      <div className="flex flex-col gap-2">
+        <button onClick={onClose} className={btnPrimary + " w-full justify-center"}>Got it</button>
+        {onSignIn && <button onClick={onSignIn} className={btn + " w-full justify-center"}>Sign in to sync</button>}
+      </div>
     </Modal>
   );
 }
