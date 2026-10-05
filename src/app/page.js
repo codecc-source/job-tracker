@@ -155,7 +155,6 @@ export default function Home() {
           Job Tracker
         </h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => setAdding(true)} className={btnPrimary + " hidden sm:inline-flex"}><Plus size={16} />Add a job</button>
           {cloud.enabled && (
             <button onClick={() => setDialog("account")} className={btn + " relative"} aria-label="Sync and account" title={cloud.user ? "Synced account" : "Sign in to sync"}>
               <CloudIcon size={16} className={cloud.status === "syncing" ? "animate-spin" : ""} />

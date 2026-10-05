@@ -4,11 +4,12 @@ import Modal from "./Modal";
 import { btn, btnPrimary } from "./ui";
 
 const POINTS = [
-  [HardDrive, "Your list stays on this device", "There is no account. Everything you add is saved in this browser, on this device only."],
-  [Save, "Save a backup often", "Tap Save backup to get a small file. Keep it in a folder you can easily find, like Documents on a laptop or the Files app on a phone. Putting a copy in Google Drive or emailing it to yourself is even safer."],
-  [Smartphone, "Changing phone, laptop or browser?", "Your list will not come with you. Save a backup first, then open it on the other device with Backup and restore."],
-  [Eraser, "Clearing browser data erases your list", "Clearing history, cookies or site data, or using a private window, will delete everything here."],
-  [Clock, "On iPhone or iPad", "Safari erases saved data if you don't visit for 7 days. Tap Share, then Add to Home Screen, to prevent this."],
+  [HardDrive, "No account? Your list stays on this device", "You can use the app without creating an account. Everything you add is saved in this browser, on this device only."],
+  [Cloud, "Create an account for cloud saves", "An account is optional. If you create one, your list can be saved to the cloud so your data is safely available beyond this one device."],
+  [Smartphone, "Easy access on other devices", "With an account, you can sign in on another phone, tablet, or computer and access your saved data without manually moving backup files between devices."],
+  [Save, "Backups are still a good idea", "You can also tap Save backup to download a small file. Keep it somewhere safe, like Documents on a laptop or the Files app on a phone. A backup gives you an extra copy of your data."],
+  [Eraser, "Clearing browser data can erase local data", "If you're using the app without an account, clearing browser data, cookies or site data, or using a private window may delete your local list. An account or backup helps protect your data."],
+  [Clock, "On iPhone or iPad", "Safari may remove saved website data if you don't visit for 7 days. Tap Share, then Add to Home Screen, to help prevent this. With an account, your cloud-saved data remains accessible when you sign back in."],
 ];
 
 export default function WelcomeDialog({ onClose, onSignIn }) {
