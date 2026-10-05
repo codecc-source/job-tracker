@@ -20,7 +20,7 @@ export default function AccountDialog({ cloud, onClose }) {
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
-  const [hp, setHp] = useState(""); // honeypot
+  const [hp, setHp] = useState("");
   const [token, setToken] = useState(null);
   const [captchaReset, setCaptchaReset] = useState(0);
   const [left, setLeft] = useState(secondsLeft);
@@ -39,12 +39,12 @@ export default function AccountDialog({ cloud, onClose }) {
 
   const send = (e) => {
     e.preventDefault();
-    if (hp) { setStep("code"); return; } // bot filled the honeypot
+    if (hp) { setStep("code"); return; }
     if (left > 0) return;
     run(
       async () => {
         try { await cloud.sendCode(email.trim(), token); }
-        finally { setToken(null); setCaptchaReset((n) => n + 1); } // single-use token
+        finally { setToken(null); setCaptchaReset((n) => n + 1); }
       },
       () => { lastSentAt = Date.now(); setLeft(secondsLeft()); setStep("code"); }
     );

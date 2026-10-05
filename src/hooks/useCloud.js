@@ -80,7 +80,6 @@ export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
     if (e) throw e;
   };
 
-  // Signing out resets this browser, the cloud copy is untouched, the local copy is wiped.
   const signOut = async () => {
     while (busy.current) await new Promise((r) => setTimeout(r, 100));
     busy.current = true;
@@ -95,7 +94,6 @@ export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
     }
   };
 
-  // Deleting the account also wipes this device's local copy.
   const deleteAccount = async () => {
     while (busy.current) await new Promise((r) => setTimeout(r, 100));
     busy.current = true;

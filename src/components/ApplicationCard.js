@@ -69,7 +69,7 @@ export default function ApplicationCard({ app, info, onStatus, onFollowUp, onDel
       )}
 
       {app.ghosted_auto && app.status === "ghosted" && (
-        <p className="mt-3 text-xs text-muted">Marked as Ghosted automatically because the deadline passed with no reply.</p>
+        <p className="mt-3 text-xs text-muted">Marked as Ghosted automatically because nothing had happened on this job for a long time.</p>
       )}
 
       {reasons.length > 0 && (

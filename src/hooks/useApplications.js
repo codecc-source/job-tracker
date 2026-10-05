@@ -35,7 +35,7 @@ export function useApplications() {
 
   const update = useCallback(async (id, patch, { touch = false } = {}) => {
     const now = new Date().toISOString();
-    const full = { ...patch, updated_at: now, ...(touch ? { last_update_at: now } : {}) };
+    const full = { ...patch, updated_at: now, ...(touch ? { last_update_at: now, activity_at: isoDay() } : {}) };
     const next = await localStore.update(id, full);
     setRows((r) => r.map((x) => (x.id === id ? next : x)));
     noteChanged();
@@ -73,15 +73,16 @@ export function useApplications() {
   }, [rows]);
 
   const autoGhost = useCallback(async (days) => {
-    const hit = new Set(rows.filter((a) => !a.deleted_at && shouldAutoGhost(a, days)).map((a) => a.id));
+    const cur = await localStore.list();
+    const hit = new Set(cur.filter((a) => !a.deleted_at && shouldAutoGhost(a, days)).map((a) => a.id));
     if (!hit.size) return 0;
     const now = new Date().toISOString();
-    const next = rows.map((a) => (hit.has(a.id) ? { ...a, status: "ghosted", ghosted_auto: true, updated_at: now } : a));
+    const next = cur.map((a) => (hit.has(a.id) ? { ...a, status: "ghosted", ghosted_auto: true, updated_at: now } : a));
     await localStore.replaceAll(next);
     setRows(next);
     noteChanged();
     return hit.size;
-  }, [rows]);
+  }, []);
 
   const clearAll = useCallback(async ({ keepTombstones = false } = {}) => {
     const cur = await localStore.list();

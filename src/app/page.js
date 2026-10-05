@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
 import {
   Plus, Download, Settings, DatabaseBackup, Info, CalendarPlus, Ellipsis, Cloud, CloudOff, RefreshCw,
@@ -63,7 +63,6 @@ export default function Home() {
   const [dialog, setDialog] = useState(null);
   const [welcome, setWelcome] = useState(false);
   const [iosHint, setIosHint] = useState(false);
-  const ghostRan = useRef(false);
 
   useEffect(() => { if (prefsReady) setTab(prefs.view); }, [prefsReady]);
 
@@ -76,12 +75,12 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!ready || !prefsReady || ghostRan.current) return;
-    ghostRan.current = true;
+    if (!ready || !prefsReady) return;
+    const span = { 30: "a month", 60: "2 months", 90: "3 months" }[prefs.ghostAfterDays];
     autoGhost(prefs.ghostAfterDays).then((n) => {
-      if (n) toast(`${n} job${n > 1 ? "s" : ""} marked as Ghosted. The deadline passed over ${prefs.ghostAfterDays === 30 ? "a month" : "2 months"} ago.`);
+      if (n) toast(`${n} job${n > 1 ? "s" : ""} marked as Ghosted. Nothing had happened for over ${span}.`);
     });
-  }, [ready, prefsReady]);
+  }, [ready, prefsReady, all, prefs.ghostAfterDays, autoGhost]);
 
   const filtered = !!(filters.q || filters.status || filters.source);
   const urls = useMemo(() => apps.map((a) => a.url).filter(Boolean), [apps]);
@@ -155,6 +154,11 @@ export default function Home() {
           Job Tracker
         </h1>
         <div className="flex items-center gap-2">
+          {ready && apps.length > 0 && (
+            <div className="hidden sm:block">
+              <button onClick={() => setAdding(true)} className={btnPrimary}><Plus size={16} />Add a job</button>
+            </div>
+          )}
           {cloud.enabled && (
             <button onClick={() => setDialog("account")} className={btn + " relative"} aria-label="Sync and account" title={cloud.user ? "Synced account" : "Sign in to sync"}>
               <CloudIcon size={16} className={cloud.status === "syncing" ? "animate-spin" : ""} />

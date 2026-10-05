@@ -17,6 +17,7 @@ export default function BackupPanel({ all, apps, prefs, onImport, onExported, on
 
   const stage = (data) => {
     const { rows, skipped } = normalizeApplications(data.applications);
+    if (!rows.some((r) => !r.deleted_at)) throw new Error("This backup has no jobs in it, so there is nothing to restore.");
     setPreview({ rows, skipped, prefs: data.preferences, counts: mergeApplications(all, rows.filter((r) => !r.deleted_at)) });
   };
 
@@ -59,7 +60,7 @@ export default function BackupPanel({ all, apps, prefs, onImport, onExported, on
         <div className="flex flex-wrap gap-2 pt-1">
           <button onClick={download} className={btn}><Download size={14} />Save backup file</button>
           <button onClick={copy} className={btn}><ClipboardCopy size={14} />Copy backup</button>
-          <button onClick={() => downloadCsv(apps)} className={btn}><FileSpreadsheet size={14} />Save as spreadsheet</button>
+          <button onClick={() => (apps.length ? downloadCsv(apps) : toast("You have no jobs to export yet."))} className={btn}><FileSpreadsheet size={14} />Save as spreadsheet</button>
         </div>
       </section>
 

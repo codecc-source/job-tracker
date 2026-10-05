@@ -19,7 +19,6 @@ function loadScript() {
   return loading;
 }
 
-/* Cloudflare Turnstile */
 export default function Turnstile({ onToken, resetSignal = 0 }) {
   const box = useRef(null);
   const widget = useRef(null);

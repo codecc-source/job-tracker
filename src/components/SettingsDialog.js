@@ -53,10 +53,11 @@ export default function SettingsDialog({ prefs, setPrefs, onClose }) {
         {!ok && <p className="mt-1 text-xs text-danger">Each number must be bigger than the one before it.</p>}
       </div>
 
-      <Field label="Mark as Ghosted if the deadline passed this long ago">
+      <Field label="Mark as Ghosted when nothing has happened for">
         <select className={field} value={prefs.ghostAfterDays} onChange={(e) => setPrefs({ ghostAfterDays: Number(e.target.value) })}>
           <option value={30}>1 month</option>
           <option value={60}>2 months</option>
+          <option value={90}>3 months</option>
         </select>
       </Field>
       <Field label="Suggest applying again after a rejection or no reply, after">

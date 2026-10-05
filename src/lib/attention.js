@@ -47,6 +47,12 @@ export function attentionFor(app, prefs, now = new Date()) {
   return { reasons, level: reasons[0]?.level ?? null, score: reasons[0]?.score ?? 0 };
 }
 
+const GHOST_ACTIVE = ["applied", "contacted", "interview"];
+
 export function shouldAutoGhost(app, days, now = new Date()) {
-  return !!app.deadline && ["saved", "applied"].includes(app.status) && -daysUntil(app.deadline, now) > days;
+  if (app.status === "saved") return !!app.deadline && -daysUntil(app.deadline, now) > days;
+  if (!GHOST_ACTIVE.includes(app.status)) return false;
+  const dates = [app.applied_at, app.deadline, app.next_step_date, app.activity_at].filter(Boolean);
+  if (!dates.length) return false;
+  return Math.min(...dates.map((d) => -daysUntil(d, now))) > days;
 }

@@ -79,6 +79,7 @@ export function normalizeApplication(a) {
     priority: Number.isInteger(a.priority) && a.priority >= 0 && a.priority <= 5 ? a.priority : 0,
     contact_name: str(a.contact_name), contact_email: str(a.contact_email), contact_phone: str(a.contact_phone),
     resume_version: str(a.resume_version), rejection_reason: str(a.rejection_reason),
+    activity_at: day(a.activity_at),
     ghosted_auto: a.ghosted_auto === true, reapply_dismissed: a.reapply_dismissed === true,
     notes: str(a.notes), job_description: str(a.job_description),
     status: STATUSES.some((s) => s.id === a.status) ? a.status : "applied",

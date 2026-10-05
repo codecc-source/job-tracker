@@ -48,7 +48,7 @@ Good to know:
 
 ### Adding a job
 
-Click **Add a job** (on a phone, the round **+** button at the bottom right).
+Click **Add a job** at the top right of the page (on a phone, use the round **+** button at the bottom right).
 
 | Field | What to enter |
 |---|---|
@@ -124,7 +124,9 @@ Buttons also appear inside attention notes: **Mark as Ghosted**, **Add update**,
 
 **Colored bars** on the cards show how urgent a job is.
 
-**Automatic Ghosted:** a Saved or Applied job whose deadline passed more than 1 or 2 months ago (your choice in Settings) is marked Ghosted automatically.
+**No news reminders:** for jobs at Applied, Contacted, or Interview, the app counts the days since you last touched the job. Saving an edit, changing the status, **Got a reply?**, **I followed up**, and **Apply again** all count. Past the yellow, orange, and red limits in Settings, the card shows "No news for N days".
+
+**Automatic Ghosted:** a job at Applied, Contacted, or Interview is marked Ghosted when its most recent date (the date you applied, the deadline, or the interview or next step date) is more than 1, 2, or 3 months in the past (your choice in Settings, 3 months by default), and you haven't edited or updated it since. A Saved job is marked Ghosted when its deadline passed that long ago. This also applies to jobs you add late with old dates, and it runs again whenever your list changes.
 
 ### Calendar
 
@@ -164,7 +166,7 @@ Open **Menu (⋯) > Settings**.
 | **Starting status for new jobs** | The status new jobs start with. |
 | **Usual currency for salaries** | The default currency in the salary field. |
 | **Remind me when there is no news for this many days** | Yellow, Orange, and Red warning levels (each must be larger than the one before). |
-| **Mark as Ghosted if the deadline passed this long ago** | 1 or 2 months. |
+| **Mark as Ghosted when nothing has happened for** | 1, 2, or 3 months. |
 | **Suggest applying again after a rejection or no reply, after** | 3 or 6 months. |
 
 ## Tech stack
