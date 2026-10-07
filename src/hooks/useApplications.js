@@ -6,6 +6,7 @@ import { isoDay } from "@/lib/dates";
 import { shouldAutoGhost } from "@/lib/attention";
 import { mergeApplications } from "@/lib/backup";
 import { makeTombstone } from "@/lib/fields";
+import { permitMassDelete } from "@/lib/syncGuard";
 import { initBackupState, noteCreated, noteChanged, noteCleared } from "@/lib/backupState";
 
 export function useApplications() {
@@ -64,6 +65,7 @@ export function useApplications() {
       const keep = incoming.map((r) => ({ ...r, updated_at: now }));
       const ids = new Set(keep.map((r) => r.id));
       next = [...keep, ...rows.filter((r) => !ids.has(r.id)).map((r) => makeTombstone(r.id))];
+      permitMassDelete();
     } else {
       next = mergeApplications(rows, incoming).merged;
     }
@@ -87,6 +89,7 @@ export function useApplications() {
   const clearAll = useCallback(async ({ keepTombstones = false } = {}) => {
     const cur = await localStore.list();
     const next = keepTombstones ? cur.map((r) => makeTombstone(r.id)) : [];
+    if (keepTombstones) permitMassDelete();
     await localStore.replaceAll(next);
     setRows(next);
     noteCleared();
@@ -101,9 +104,14 @@ export function useApplications() {
     return added + updated;
   }, []);
 
+  const replaceWith = useCallback(async (next) => {
+    await localStore.replaceAll(next);
+    setRows(next);
+  }, []);
+
   const visible = rows.filter((r) => !r.deleted_at);
   return {
     apps: visible, all: rows, ready, create, update, setStatus, logFollowUp, remove,
-    importRows, autoGhost, reapply, dismissReapply, clearAll, applyRemote,
+    importRows, autoGhost, reapply, dismissReapply, clearAll, applyRemote, replaceWith,
   };
 }

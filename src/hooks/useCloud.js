@@ -1,10 +1,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase, cloudEnabled } from "@/lib/supabase";
-import { syncApplications } from "@/lib/sync";
+import { syncApplications, pullRemoteApplications } from "@/lib/sync";
+import { isMassDeletePermitted, permitMassDelete, clearMassDeletePermit } from "@/lib/syncGuard";
+
+const SYNC_EVERY_MS = 10 * 60 * 1000;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export function friendlyError(e) {
   const m = (e?.message || "").toLowerCase();
+  if (e?.code === "MASS_DELETE") return "Sync is paused because many jobs were deleted. Choose Restore or Delete in the box above, then try again.";
   if (m.includes("signups not allowed") || m.includes("user not found") || m.includes("not allowed for otp")) return "This app is invite-only. Ask the owner to add your email, then try again.";
   if (m.includes("captcha")) return "Please complete the security check and try again.";
   if (m.includes("rate limit") || m.includes("too many")) return "Too many emails were sent. Please wait a few minutes and try again.";
@@ -13,15 +18,25 @@ export function friendlyError(e) {
   return e?.message || "Something went wrong. Please try again.";
 }
 
-export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
+export function useCloud({ rows, ready, applyRemote, replaceWith, onSignedOut, onNotice }) {
   const [user, setUser] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [lastSync, setLastSync] = useState(null);
+  const [blocked, setBlockedState] = useState(null);
+
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  const userRef = useRef(null);
+  userRef.current = user;
+  const cbs = useRef({});
+  cbs.current = { applyRemote, replaceWith, onSignedOut, onNotice };
   const busy = useRef(false);
   const again = useRef(false);
+  const blockedRef = useRef(false);
+  const userId = user?.id ?? null;
+
+  const setBlocked = useCallback((b) => { blockedRef.current = !!b; setBlockedState(b); }, []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -30,42 +45,67 @@ export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  const sync = useCallback(async () => {
-    if (!supabase || !user) return;
+  useEffect(() => {
+    if (!userId) setBlocked(null);
+  }, [userId, setBlocked]);
+
+  const runSync = useCallback(async () => {
+    if (!supabase || !userRef.current) return;
     if (busy.current) { again.current = true; return; }
     busy.current = true;
     setStatus("syncing");
     setError("");
     try {
-      const res = await syncApplications(supabase, user.id, rowsRef.current);
-      await applyRemote(res.merged);
+      const wasEmpty = rowsRef.current.length === 0;
+      const res = await syncApplications(supabase, userRef.current.id, rowsRef.current, { allowMassDelete: isMassDeletePermitted() });
+      clearMassDeletePermit();
+      setBlocked(null);
+      const n = await cbs.current.applyRemote(res.merged);
+      if (wasEmpty && n) cbs.current.onNotice?.(`Restored ${n} job${n > 1 ? "s" : ""} from your account.`);
       setLastSync(new Date());
       setStatus("ok");
     } catch (e) {
       setStatus("error");
-      setError(friendlyError(e));
+      if (e?.code === "MASS_DELETE") {
+        if (!blockedRef.current) cbs.current.onNotice?.("Sync paused to protect your data. Open the cloud icon to review.");
+        setBlocked({ count: e.count });
+        setError(`Sync paused to protect your data. ${e.count} jobs would be deleted from your account.`);
+      } else {
+        setError(friendlyError(e));
+      }
     } finally {
       busy.current = false;
-      if (again.current) { again.current = false; sync(); }
+      if (again.current) {
+        again.current = false;
+        if (!blockedRef.current) runSync();
+      }
     }
-  }, [user, applyRemote]);
+  }, [setBlocked]);
+
+  const autoSync = useCallback(() => {
+    if (blockedRef.current) return;
+    return runSync();
+  }, [runSync]);
 
   useEffect(() => {
-    if (!user || !ready) return;
-    const t = setTimeout(sync, 2000);
+    if (!userId || !ready) return;
+    const t = setTimeout(autoSync, 2000);
     return () => clearTimeout(t);
-  }, [rows, user, ready, sync]);
+  }, [rows, userId, ready, autoSync]);
 
   useEffect(() => {
-    if (!user) return;
-    const onShow = () => document.visibilityState === "visible" && sync();
-    document.addEventListener("visibilitychange", onShow);
-    window.addEventListener("online", sync);
-    return () => {
-      document.removeEventListener("visibilitychange", onShow);
-      window.removeEventListener("online", sync);
-    };
-  }, [user, sync]);
+    if (!userId) return;
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") autoSync();
+    }, SYNC_EVERY_MS);
+    return () => clearInterval(t);
+  }, [userId, autoSync]);
+
+  useEffect(() => {
+    if (!userId) return;
+    window.addEventListener("online", autoSync);
+    return () => window.removeEventListener("online", autoSync);
+  }, [userId, autoSync]);
 
   const sendCode = async (email, captchaToken) => {
     const { error: e } = await supabase.auth.signInWithOtp({
@@ -81,13 +121,17 @@ export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
   };
 
   const signOut = async () => {
-    while (busy.current) await new Promise((r) => setTimeout(r, 100));
+    while (busy.current) await wait(100);
     busy.current = true;
     try {
-      if (user) await syncApplications(supabase, user.id, rowsRef.current);
+      const u = userRef.current;
+      if (u) await syncApplications(supabase, u.id, rowsRef.current, { allowMassDelete: isMassDeletePermitted() });
       const { error: e } = await supabase.auth.signOut({ scope: "local" });
       if (e) throw e;
-      await onSignedOut?.();
+      await cbs.current.onSignedOut?.();
+    } catch (e) {
+      if (e?.code === "MASS_DELETE") setBlocked({ count: e.count });
+      throw e;
     } finally {
       again.current = false;
       busy.current = false;
@@ -95,18 +139,48 @@ export function useCloud({ rows, ready, applyRemote, onSignedOut }) {
   };
 
   const deleteAccount = async () => {
-    while (busy.current) await new Promise((r) => setTimeout(r, 100));
+    while (busy.current) await wait(100);
     busy.current = true;
     try {
       const { error: e } = await supabase.rpc("delete_my_account");
       if (e) throw e;
       await supabase.auth.signOut({ scope: "local" });
-      await onSignedOut?.();
+      await cbs.current.onSignedOut?.();
     } finally {
       again.current = false;
       busy.current = false;
     }
   };
 
-  return { enabled: cloudEnabled, user, status, error, lastSync, sync, sendCode, verify, signOut, deleteAccount };
+  const resolveBlocked = async (choice) => {
+    while (busy.current) await wait(100);
+    if (choice === "delete") {
+      permitMassDelete();
+      setBlocked(null);
+      return runSync();
+    }
+    busy.current = true;
+    try {
+      const remote = await pullRemoteApplications(supabase);
+      const local = rowsRef.current;
+      const remoteById = new Map(remote.map((a) => [a.id, a]));
+      const have = new Set(local.map((a) => a.id));
+      const next = local.map((l) => {
+        const r = remoteById.get(l.id);
+        return r && l.deleted_at && !r.deleted_at ? r : l;
+      });
+      for (const r of remote) if (!have.has(r.id)) next.push(r);
+      await cbs.current.replaceWith(next);
+      clearMassDeletePermit();
+      setBlocked(null);
+    } finally {
+      busy.current = false;
+    }
+    return runSync();
+  };
+
+  return {
+    enabled: cloudEnabled, user, status, error, lastSync, blocked,
+    sync: runSync, sendCode, verify, signOut, deleteAccount, resolveBlocked,
+  };
 }

@@ -104,7 +104,17 @@ export default function AccountDialog({ cloud, onClose }) {
         <p className="font-medium">{cloud.user.email}</p>
         <p className={cloud.status === "error" ? "text-danger" : "text-muted"}>{statusText}</p>
       </div>
-      <p className="text-sm text-muted">Your list syncs automatically. It also syncs when you come back to this page.</p>
+      <p className="text-sm text-muted">Your list syncs automatically when you add or change a job, when your device comes back online, and every 10 minutes while this page is open.</p>
+      {cloud.blocked && (
+        <div className="space-y-2 rounded-xl border border-danger/30 p-3" role="alert">
+          <p className="text-sm font-semibold text-danger">Sync paused to protect your data</p>
+          <p className="text-sm text-muted">{cloud.blocked.count} jobs were deleted on this device and are about to be deleted from your account too. If you didn't mean to delete them, restore them from your account.</p>
+          <div className="flex flex-wrap gap-2">
+            <button disabled={busy} onClick={() => run(() => cloud.resolveBlocked("restore"))} className={btnPrimary}>Restore them from my account</button>
+            <button disabled={busy} onClick={() => run(() => cloud.resolveBlocked("delete"))} className={btnDanger}>Delete them from my account</button>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         <button onClick={cloud.sync} className={btn}><RefreshCw size={14} className={cloud.status === "syncing" ? "animate-spin" : ""} />Sync now</button>
         <button disabled={busy} onClick={() => setConfirmSignOut(true)} className={btn}><LogOut size={14} />Sign out</button>

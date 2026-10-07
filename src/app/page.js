@@ -48,9 +48,13 @@ export default function Home() {
   const { prefs, setPrefs, ready: prefsReady } = usePreferences();
   const {
     apps, all, ready, create, update, setStatus, logFollowUp, remove, importRows,
-    autoGhost, reapply, dismissReapply, clearAll, applyRemote,
+    autoGhost, reapply, dismissReapply, clearAll, applyRemote, replaceWith,
   } = useApplications();
-  const cloud = useCloud({ rows: all, ready, applyRemote, onSignedOut: () => clearAll() });
+  const cloud = useCloud({
+    rows: all, ready, applyRemote, replaceWith,
+    onSignedOut: () => clearAll(),
+    onNotice: (m) => toast(m),
+  });
 
   const [view, setView] = useState("jobs");
   const [filters, setFilters] = useState(DEFAULT_FILTERS);

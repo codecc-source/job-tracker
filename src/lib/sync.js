@@ -17,11 +17,15 @@ async function pullAll(sb) {
   }
 }
 
-export async function syncApplications(sb, userId, local) {
+export async function pullRemoteApplications(sb) {
   const remote = await pullAll(sb);
-  const remoteApps = remote
+  return remote
     .map((r) => normalizeApplication({ ...r.data, id: r.id, updated_at: r.updated_at, deleted_at: r.deleted_at }))
     .filter(Boolean);
+}
+
+export async function syncApplications(sb, userId, local, { allowMassDelete = false } = {}) {
+  const remoteApps = await pullRemoteApplications(sb);
   const remoteById = new Map(remoteApps.map((a) => [a.id, a]));
 
   const { merged, added, updated } = mergeApplications(local, remoteApps);
@@ -29,6 +33,12 @@ export async function syncApplications(sb, userId, local) {
     const r = remoteById.get(m.id);
     return !r || new Date(m.updated_at) > new Date(r.updated_at);
   });
+
+  const liveRemote = remoteApps.filter((a) => !a.deleted_at).length;
+  const deletes = push.filter((m) => m.deleted_at && remoteById.get(m.id) && !remoteById.get(m.id).deleted_at).length;
+  if (!allowMassDelete && deletes >= 3 && deletes * 2 > liveRemote) {
+    throw Object.assign(new Error("mass_delete"), { code: "MASS_DELETE", count: deletes });
+  }
 
   for (let i = 0; i < push.length; i += CHUNK) {
     const rows = push.slice(i, i + CHUNK).map((m) => ({
