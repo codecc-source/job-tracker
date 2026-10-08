@@ -1,3 +1,4 @@
+import { cleanUrl } from "./url";
 import { STATUSES } from "./statuses";
 import { MODES, JOB_TYPES, PERIODS } from "./fields";
 
@@ -70,7 +71,7 @@ export function normalizeApplication(a) {
   return {
     id: a.id.slice(0, 100),
     title: str(a.title), company: str(a.company),
-    url: /^https?:\/\//i.test(str(a.url)) ? a.url : "",
+    url: cleanUrl(str(a.url)),
     source: str(a.source), location: str(a.location), work_mode: pick(a.work_mode, MODES), salary: str(a.salary),
     job_type: pick(a.job_type, JOB_TYPES),
     salary_currency: str(a.salary_currency).slice(0, 12), salary_min: num(a.salary_min), salary_max: num(a.salary_max),

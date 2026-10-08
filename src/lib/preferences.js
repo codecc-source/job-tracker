@@ -1,6 +1,8 @@
 import { STATUSES } from "./statuses";
 
 export const PREFS_KEY = "jt:prefs";
+export const PREFS_AT_KEY = "jt:prefs-at";
+export const SYNCED_KEYS = ["view", "defaultStatus", "defaultCurrency", "ghostAfterDays", "reapplyMonths", "staleDays"];
 
 export const DEFAULT_PREFS = {
   theme: "dark",
@@ -42,6 +44,16 @@ export function loadPrefs() {
 
 export function savePrefs(p) {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch {}
+}
+
+export const pickSynced = (p) => Object.fromEntries(SYNCED_KEYS.map((k) => [k, p[k]]));
+
+export function loadPrefsAt() {
+  try { return Number(localStorage.getItem(PREFS_AT_KEY)) || 0; } catch { return 0; }
+}
+
+export function savePrefsAt(n) {
+  try { localStorage.setItem(PREFS_AT_KEY, String(n)); } catch {}
 }
 
 export function applyTheme(theme) {

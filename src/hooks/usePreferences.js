@@ -1,10 +1,14 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_PREFS, loadPrefs, savePrefs, sanitizePrefs, applyTheme } from "@/lib/preferences";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  DEFAULT_PREFS, loadPrefs, savePrefs, sanitizePrefs, applyTheme, pickSynced, loadPrefsAt, savePrefsAt,
+} from "@/lib/preferences";
 
 export function usePreferences() {
   const [prefs, setPrefsState] = useState(DEFAULT_PREFS);
   const [ready, setReady] = useState(false);
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
 
   useEffect(() => { setPrefsState(loadPrefs()); setReady(true); }, []);
 
@@ -22,9 +26,21 @@ export function usePreferences() {
     setPrefsState((p) => {
       const next = sanitizePrefs({ ...p, ...patch });
       savePrefs(next);
+      if (JSON.stringify(pickSynced(next)) !== JSON.stringify(pickSynced(p))) savePrefsAt(Date.now());
       return next;
     });
   }, []);
 
-  return { prefs, setPrefs, ready };
+  const getSyncable = useCallback(() => ({ data: pickSynced(prefsRef.current), at: loadPrefsAt() }), []);
+
+  const applyRemotePrefs = useCallback((data, at) => {
+    setPrefsState((p) => {
+      const next = sanitizePrefs({ ...p, ...pickSynced(sanitizePrefs(data)) });
+      savePrefs(next);
+      return next;
+    });
+    savePrefsAt(at);
+  }, []);
+
+  return { prefs, setPrefs, ready, getSyncable, applyRemotePrefs };
 }

@@ -6,6 +6,7 @@ import { isoDay } from "@/lib/dates";
 import { shouldAutoGhost } from "@/lib/attention";
 import { mergeApplications } from "@/lib/backup";
 import { makeTombstone } from "@/lib/fields";
+import { cleanUrl } from "@/lib/url";
 import { permitMassDelete } from "@/lib/syncGuard";
 import { initBackupState, noteCreated, noteChanged, noteCleared } from "@/lib/backupState";
 
@@ -27,6 +28,7 @@ export function useApplications() {
       status: "applied", applied_at: isoDay(),
       notes: "", job_description: "",
       ...input,
+      url: cleanUrl(input?.url),
       last_update_at: now, updated_at: now, deleted_at: null,
     };
     await localStore.create(app);
@@ -36,7 +38,8 @@ export function useApplications() {
 
   const update = useCallback(async (id, patch, { touch = false } = {}) => {
     const now = new Date().toISOString();
-    const full = { ...patch, updated_at: now, ...(touch ? { last_update_at: now, activity_at: isoDay() } : {}) };
+    const clean = "url" in patch ? { ...patch, url: cleanUrl(patch.url) } : patch;
+    const full = { ...clean, updated_at: now, ...(touch ? { last_update_at: now, activity_at: isoDay() } : {}) };
     const next = await localStore.update(id, full);
     setRows((r) => r.map((x) => (x.id === id ? next : x)));
     noteChanged();
@@ -52,11 +55,50 @@ export function useApplications() {
       ghosted_auto: false, reapply_dismissed: false,
     }, { touch: true });
 
-  const remove = useCallback(async (id) => {
-    await localStore.remove(id);
-    setRows((r) => r.map((x) => (x.id === id ? makeTombstone(id) : x)));
+  const updateMany = useCallback(async (ids, patch, { touch = false } = {}) => {
+    const set = new Set(ids);
+    const now = new Date().toISOString();
+    const cur = await localStore.list();
+    const next = cur.map((a) => (
+      set.has(a.id) && !a.deleted_at
+        ? { ...a, ...patch, updated_at: now, ...(touch ? { last_update_at: now, activity_at: isoDay() } : {}) }
+        : a
+    ));
+    await localStore.replaceAll(next);
+    setRows(next);
     noteChanged();
   }, []);
+
+  const removeMany = useCallback(async (ids) => {
+    const set = new Set(ids);
+    const cur = await localStore.list();
+    const prev = cur.filter((a) => set.has(a.id) && !a.deleted_at);
+    if (!prev.length) return [];
+    const next = cur.map((a) => (set.has(a.id) && !a.deleted_at ? makeTombstone(a.id) : a));
+    if (prev.length >= 3) permitMassDelete();
+    await localStore.replaceAll(next);
+    setRows(next);
+    noteChanged();
+    return prev;
+  }, []);
+
+  const restoreMany = useCallback(async (prevRows) => {
+    if (!prevRows?.length) return;
+    const byId = new Map(prevRows.map((p) => [p.id, p]));
+    const now = new Date().toISOString();
+    const cur = await localStore.list();
+    const next = cur.map((a) => (byId.has(a.id) ? { ...byId.get(a.id), deleted_at: null, updated_at: now } : a));
+    await localStore.replaceAll(next);
+    setRows(next);
+    noteChanged();
+  }, []);
+
+  const remove = useCallback(async (id) => (await removeMany([id]))[0] ?? null, [removeMany]);
+  const restore = useCallback((prev) => restoreMany(prev ? [prev] : []), [restoreMany]);
+  const bulkStatus = useCallback(
+    (ids, status) => updateMany(ids, { status, ghosted_auto: false }, { touch: true }),
+    [updateMany]
+  );
 
   const importRows = useCallback(async (incoming, mode) => {
     let next;
@@ -111,7 +153,7 @@ export function useApplications() {
 
   const visible = rows.filter((r) => !r.deleted_at);
   return {
-    apps: visible, all: rows, ready, create, update, setStatus, logFollowUp, remove,
-    importRows, autoGhost, reapply, dismissReapply, clearAll, applyRemote, replaceWith,
+    apps: visible, all: rows, ready, create, update, setStatus, logFollowUp, remove, restore,
+    removeMany, restoreMany, bulkStatus, importRows, autoGhost, reapply, dismissReapply, clearAll, applyRemote, replaceWith,
   };
 }

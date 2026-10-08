@@ -3,14 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
 import {
   Plus, Download, Settings, DatabaseBackup, Info, CalendarPlus, Ellipsis, Cloud, CloudOff, RefreshCw,
-  TriangleAlert, Hourglass, CalendarClock, Send, ChartColumn, ListChecks, X, Briefcase,
+  TriangleAlert, Hourglass, CalendarClock, Send, ChartColumn, ListChecks, X, Briefcase, BookOpen,
 } from "lucide-react";
 import { useApplications } from "@/hooks/useApplications";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useCloud } from "@/hooks/useCloud";
 import { buildBackup, exportBackup } from "@/lib/backup";
 import { noteExported } from "@/lib/backupState";
-import { sanitizePrefs } from "@/lib/preferences";
+import { sanitizePrefs, pickSynced } from "@/lib/preferences";
 import { attentionFor } from "@/lib/attention";
 import { buildStats } from "@/lib/stats";
 import { upcomingEvents, downloadIcs } from "@/lib/calendar";
@@ -29,6 +29,8 @@ import BackupReminder from "@/components/BackupReminder";
 import AccountDialog from "@/components/AccountDialog";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import StatsView from "@/components/StatsView";
+import GuideDialog from "@/components/GuideDialog";
+import BulkBar from "@/components/BulkBar";
 import DropdownMenu from "@/components/DropdownMenu";
 import Modal from "@/components/Modal";
 import Footer from "@/components/Footer";
@@ -45,15 +47,21 @@ function Tile({ icon: Icon, label, value, color, onClick }) {
 }
 
 export default function Home() {
-  const { prefs, setPrefs, ready: prefsReady } = usePreferences();
+  const { prefs, setPrefs, ready: prefsReady, getSyncable, applyRemotePrefs } = usePreferences();
   const {
-    apps, all, ready, create, update, setStatus, logFollowUp, remove, importRows,
-    autoGhost, reapply, dismissReapply, clearAll, applyRemote, replaceWith,
+    apps, all, ready, create, update, setStatus, logFollowUp, remove, restore, removeMany, restoreMany, bulkStatus,
+    importRows, autoGhost, reapply, dismissReapply, clearAll, applyRemote, replaceWith,
   } = useApplications();
   const cloud = useCloud({
     rows: all, ready, applyRemote, replaceWith,
     onSignedOut: () => clearAll(),
     onNotice: (m) => toast(m),
+    settings: {
+      ready: prefsReady,
+      stamp: JSON.stringify(pickSynced(prefs)),
+      get: getSyncable,
+      apply: applyRemotePrefs,
+    },
   });
 
   const [view, setView] = useState("jobs");
@@ -67,8 +75,14 @@ export default function Home() {
   const [dialog, setDialog] = useState(null);
   const [welcome, setWelcome] = useState(false);
   const [iosHint, setIosHint] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
 
   useEffect(() => { if (prefsReady) setTab(prefs.view); }, [prefsReady]);
+
+  useEffect(() => {
+    if (view !== "jobs") { setSelecting(false); setSelected(new Set()); }
+  }, [view]);
 
   useEffect(() => {
     setWelcome(true);
@@ -95,13 +109,39 @@ export default function Home() {
     () => applyFilters(apps, filters, attn).filter((a) => tab === "all" || attn.get(a.id).reasons.length),
     [apps, filters, tab, attn]
   );
+  const selIds = useMemo(() => shown.filter((a) => selected.has(a.id)).map((a) => a.id), [shown, selected]);
   const viewing = apps.find((a) => a.id === viewingId);
   const replying = apps.find((a) => a.id === replyingId);
   const calendarApp = apps.find((a) => a.id === calendarId);
 
   const add = async (input) => { await create(input); toast.success("Added to your list"); };
   const follow = async (id) => { await logFollowUp(id); toast.success("Follow-up noted"); };
-  const del = async (id) => { await remove(id); toast("Job deleted"); };
+  const del = async (id) => {
+    const prev = await remove(id);
+    if (!prev) return;
+    toast("Job deleted", {
+      duration: 8000,
+      action: { label: "Undo", onClick: async () => { await restore(prev); toast.success("Job restored"); } },
+    });
+  };
+
+  const exitSelect = () => { setSelecting(false); setSelected(new Set()); };
+  const toggleSelect = (id) => setSelected((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const bulkSet = async (status) => {
+    const n = selIds.length;
+    await bulkStatus(selIds, status);
+    setSelected(new Set());
+    toast.success(`${n} job${n > 1 ? "s" : ""} updated`);
+  };
+  const bulkDelete = async () => {
+    const prev = await removeMany(selIds);
+    setSelected(new Set());
+    if (!prev.length) return;
+    toast(`${prev.length} job${prev.length > 1 ? "s" : ""} deleted`, {
+      duration: 8000,
+      action: { label: "Undo", onClick: async () => { await restoreMany(prev); toast.success("Jobs restored"); } },
+    });
+  };
   const save = async (id, patch, opts) => { await update(id, patch, opts); toast.success("Saved"); };
   const reply = async (id, patch) => { await update(id, patch, { touch: true }); toast.success("Update saved"); };
 
@@ -163,6 +203,9 @@ export default function Home() {
               <button onClick={() => setAdding(true)} className={btnPrimary}><Plus size={16} />Add a job</button>
             </div>
           )}
+          <button onClick={() => setDialog("guide")} className={btn} aria-label="Guide" title="How the app works">
+            <BookOpen size={16} /><span className="hidden sm:inline">Guide</span>
+          </button>
           {cloud.enabled && (
             <button onClick={() => setDialog("account")} className={btn + " relative"} aria-label="Sync and account" title={cloud.user ? "Synced account" : "Sign in to sync"}>
               <CloudIcon size={16} className={cloud.status === "syncing" ? "animate-spin" : ""} />
@@ -211,13 +254,16 @@ export default function Home() {
               <Tile icon={Send} label="Applied this week" value={stats.thisWeek} color="bg-blue-500/15 text-blue-600 dark:text-blue-300" onClick={() => setView("stats")} />
             </div>
 
-            {tab === "all" && !filtered && <NeedsAttention apps={apps} attn={attn} {...handlers} />}
+            {tab === "all" && !filtered && !selecting && <NeedsAttention apps={apps} attn={attn} {...handlers} />}
 
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-muted">
                 {filtered ? "Results" : tab === "all" ? "All my jobs" : "Needs attention"} ({shown.length})
               </h2>
               <div className="flex items-center gap-2">
+                {!selecting && shown.length > 0 && (
+                  <button onClick={() => setSelecting(true)} className="text-xs text-muted hover:text-text">Select</button>
+                )}
                 {filtered && (
                   <button onClick={() => setFilters(DEFAULT_FILTERS)} className="inline-flex items-center gap-1 text-xs text-muted hover:text-text"><X size={13} />Clear filters</button>
                 )}
@@ -232,6 +278,8 @@ export default function Home() {
               apps={shown}
               attn={attn}
               empty={filtered ? "No matches." : tab === "all" ? "Nothing here yet." : "Nothing needs your attention right now."}
+              selection={selecting ? new Set(selIds) : null}
+              onSelect={toggleSelect}
               {...handlers}
             />
           </>
@@ -240,14 +288,24 @@ export default function Home() {
 
       <Footer onInfo={() => setWelcome(true)} />
 
-      <button
-        onClick={() => setAdding(true)}
-        aria-label="Add a job"
-        className="fixed bottom-5 right-5 z-30 grid size-14 place-items-center rounded-full bg-accent text-white shadow-xl shadow-black/40 transition-colors hover:bg-accent-hover sm:hidden"
-      >
-        <Plus size={26} />
-      </button>
+      {!selecting && (
+        <button
+          onClick={() => setAdding(true)}
+          aria-label="Add a job"
+          className="fixed bottom-5 right-5 z-30 grid size-14 place-items-center rounded-full bg-accent text-white shadow-xl shadow-black/40 transition-colors hover:bg-accent-hover sm:hidden"
+        >
+          <Plus size={26} />
+        </button>
+      )}
 
+      {selecting && view === "jobs" && (
+        <BulkBar
+          count={selIds.length} total={shown.length}
+          onSelectAll={() => setSelected(new Set(shown.map((a) => a.id)))}
+          onClear={() => setSelected(new Set())}
+          onStatus={bulkSet} onDelete={bulkDelete} onDone={exitSelect}
+        />
+      )}
       {adding && (
         <Modal title="Add a job" onClose={() => setAdding(false)} wide>
           <QuickAdd onAdd={add} onDone={() => setAdding(false)} existingUrls={urls} defaultStatus={prefs.defaultStatus} defaultCurrency={prefs.defaultCurrency} />
@@ -264,6 +322,7 @@ export default function Home() {
       {editing && <ApplicationDrawer key={editing.id} app={editing} urls={urls} onSave={save} onClose={() => setEditing(null)} />}
       {replying && <ReplyDialog key={replying.id} app={replying} onSave={reply} onClose={() => setReplyingId(null)} />}
       {calendarApp && <CalendarDialog key={calendarApp.id} app={calendarApp} onClose={() => setCalendarId(null)} />}
+      {dialog === "guide" && <GuideDialog onClose={() => setDialog(null)} />}
       {dialog === "settings" && <SettingsDialog prefs={prefs} setPrefs={setPrefs} onClose={() => setDialog(null)} />}
       {dialog === "account" && <AccountDialog cloud={cloud} onClose={() => setDialog(null)} />}
       {dialog === "backup" && (

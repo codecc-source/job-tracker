@@ -5,6 +5,7 @@ import { STATUSES } from "@/lib/statuses";
 import { parsePaste } from "@/lib/parse";
 import { isoDay } from "@/lib/dates";
 import { emptyFields } from "@/lib/fields";
+import { cleanUrl } from "@/lib/url";
 import { field, btnPrimary, Field } from "./ui";
 import JobFields from "./JobFields";
 
@@ -18,20 +19,24 @@ export default function QuickAdd({ onAdd, onDone, existingUrls = [], defaultStat
     setF((p) => ({ ...p, status: defaultStatus, salary_currency: p.salary_min || p.salary_max ? p.salary_currency : defaultCurrency }));
   }, [defaultStatus, defaultCurrency]);
 
-  const dupe = f.url && existingUrls.includes(f.url.trim());
+  const urlText = f.url.trim();
+  const cleaned = cleanUrl(urlText);
+  const badUrl = !!urlText && !cleaned;
+  const dupe = !!cleaned && existingUrls.some((u) => cleanUrl(u) === cleaned);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   /* autofill source from link */
   const onUrl = (e) => {
     const url = e.target.value;
-    setF((p) => ({ ...p, url, ...(srcTouched ? {} : { source: parsePaste(url).source }) }));
+    setF((p) => ({ ...p, url, ...(srcTouched ? {} : { source: parsePaste(cleanUrl(url) || url).source }) }));
   };
   const onSource = (e) => { setSrcTouched(true); set("source")(e); };
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!f.title.trim() && !f.company.trim() && !f.url.trim()) return;
-    await onAdd({ ...f, title: f.title.trim(), company: f.company.trim(), url: f.url.trim() });
+    if (badUrl) return;
+    if (!f.title.trim() && !f.company.trim() && !cleaned) return;
+    await onAdd({ ...f, title: f.title.trim(), company: f.company.trim(), url: cleaned });
     setF(blank(defaultStatus, defaultCurrency));
     setSrcTouched(false);
     onDone?.();
@@ -42,8 +47,9 @@ export default function QuickAdd({ onAdd, onDone, existingUrls = [], defaultStat
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Job title"><input className={field} placeholder="Frontend Developer" value={f.title} onChange={set("title")} /></Field>
         <Field label="Company"><input className={field} placeholder="Acme" value={f.company} onChange={set("company")} /></Field>
-        <Field label="Link to the job post"><input className={field} placeholder="https://..." value={f.url} onChange={onUrl} /></Field>
+        <Field label="Link to the job post"><input className={field} placeholder="https://..." value={f.url} onChange={onUrl} onBlur={() => cleaned && setF((p) => ({ ...p, url: cleaned }))} /></Field>
       </div>
+      {badUrl && <p className="text-sm text-danger" role="alert">Enter a full web address, like https://example.com/job</p>}
       {dupe && <p className="text-sm text-amber-600 dark:text-amber-300">You already added this link.</p>}
 
       <div className="grid gap-3 sm:grid-cols-2">

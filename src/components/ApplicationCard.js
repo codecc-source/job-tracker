@@ -12,7 +12,7 @@ import { Stars } from "./StarRating";
 const ICONS = { next: CalendarClock, deadline: Hourglass, stale: Clock, reapply: RotateCcw };
 const CAN_REPLY = ["saved", "applied", "contacted", "interview"];
 
-export default function ApplicationCard({ app, info, onStatus, onFollowUp, onDelete, onEdit, onView, onReply, onReapply, onDismiss, onCalendar }) {
+export default function ApplicationCard({ app, info, onStatus, onFollowUp, onDelete, onEdit, onView, onReply, onReapply, onDismiss, onCalendar, selecting, selected, onSelect }) {
   const salary = formatSalary(app);
   const meta = [
     app.location && [MapPin, app.location],
@@ -32,8 +32,14 @@ export default function ApplicationCard({ app, info, onStatus, onFollowUp, onDel
   }
 
   return (
-    <li className={`rounded-2xl border border-l-4 border-line bg-surface p-4 shadow-md shadow-black/20 transition-colors hover:border-accent/40 ${LEVEL_BAR[info?.level] ?? "border-l-line"}`}>
+    <li className={`${selected ? "ring-2 ring-accent " : ""}rounded-2xl border border-l-4 border-line bg-surface p-4 shadow-md shadow-black/20 transition-colors hover:border-accent/40 ${LEVEL_BAR[info?.level] ?? "border-l-line"}`}>
       <div className="flex items-start gap-3">
+        {selecting && (
+          <input
+            type="checkbox" checked={!!selected} onChange={() => onSelect(app.id)} aria-label="Select this job"
+            className="mt-2.5 size-5 shrink-0 accent-accent"
+          />
+        )}
         <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-sm font-semibold text-accent">
           {(app.company || app.title || "?")[0].toUpperCase()}
         </div>
@@ -116,7 +122,7 @@ export default function ApplicationCard({ app, info, onStatus, onFollowUp, onDel
             items={[
               { label: "I followed up", desc: "Tap this after you emailed or called them. It restarts the \"no news\" count.", icon: Send, onClick: () => onFollowUp(app.id) },
               { label: "Add to calendar", desc: "Interview, deadline or a follow-up reminder", icon: CalendarPlus, onClick: () => onCalendar(app) },
-              { label: "Delete", icon: Trash2, danger: true, onClick: () => confirm("Delete this job from your list?") && onDelete(app.id) },
+              { label: "Delete", icon: Trash2, danger: true, onClick: () => onDelete(app.id) },
             ]}
           />
         </span>
